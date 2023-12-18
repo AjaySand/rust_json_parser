@@ -3,6 +3,14 @@ name = "rust_json_parser"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "rust_json_parser"
+path = "src/lib.rs"
+
+[[bin]]
+name = "manual_tests"
+path = "example/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
