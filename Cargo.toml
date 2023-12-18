@@ -11,6 +11,12 @@ path = "src/lib.rs"
 name = "manual_tests"
 path = "example/main.rs"
 
+
+[[bin]]
+name = "serde_json_test"
+path = "example/serde.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde_json = "1.0"
