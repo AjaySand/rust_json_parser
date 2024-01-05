@@ -1,0 +1,11 @@
+{
+    "array tests": [
+	1,
+	"1",
+	{ "1": 1 },
+	[ 1 ], 
+	null,
+	true,
+	false
+    ]
+}

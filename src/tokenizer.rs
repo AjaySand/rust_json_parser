@@ -13,9 +13,6 @@ pub enum Token {
     Null,
 }
 
-/*
-* TODO:
-*/
 pub fn tokenize_json(input: &str) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut chars = input.chars().peekable();
@@ -82,7 +79,7 @@ pub fn tokenize_json(input: &str) -> Vec<Token> {
             'n' => {
                 let taken = chars.by_ref().take(4).collect::<String>();
                 if taken == "null" {
-                    tokens.push(Token::False);
+                    tokens.push(Token::Null);
                     continue;
                 } else {
                     // TODO: handle sytax error

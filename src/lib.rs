@@ -1,5 +1,7 @@
 use std::iter::Iterator;
 use std::{collections::BTreeMap, process};
+
+pub mod tokenizer;
 use tokenizer::{tokenize_json, Token};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -20,8 +22,6 @@ enum ConsoleColors {
     WHITE(bool),
     None,
 }
-
-pub mod tokenizer;
 
 fn print_colorize_string_for_console(str: String, color: ConsoleColors) {
     const RED: i16 = 31;
@@ -57,21 +57,106 @@ where
 }
 
 // https://github.com/eatonphil/pj/blob/master/pj/parser.py
-fn parse_list<'a, I>(value: &mut Vec<JsonValue>, tokens: &mut I)
+fn parse_list<'a, I>(parent_value: &mut Vec<JsonValue>, tokens: &mut I)
 where
     I: Iterator<Item = &'a Token> + Clone,
 {
     let first_token = tokens.clone().peekable().peek().unwrap().to_owned();
     if first_token == &Token::RightSquareBracket {
         // this is and empty list
+
+        print_colorize_string_for_console(
+            format!("{:?}", parent_value),
+            ConsoleColors::YELLOW(true),
+        );
+        return;
     }
 
     loop {
+        let value = get_next_token(tokens);
+        match value {
+            // string
+            Token::String(val) => {
+                print_colorize_string_for_console(
+                    format!("string {:?}", value),
+                    ConsoleColors::GREEN(true),
+                );
+
+                parent_value.push(JsonValue::String(val.into()));
+            }
+            // number
+            Token::Number(val) => {
+                print_colorize_string_for_console(
+                    format!("{:?}", value),
+                    ConsoleColors::GREEN(true),
+                );
+
+                parent_value.push(JsonValue::Number(val.into()));
+            }
+            // object
+            Token::LeftCurlyBracket => {
+                let mut val = BTreeMap::<String, JsonValue>::new();
+
+                print_colorize_string_for_console(
+                    format!("{:?}", value),
+                    ConsoleColors::YELLOW(true),
+                );
+                parse_object(&mut val, tokens);
+
+                parent_value.push(JsonValue::Object(val));
+            }
+            // array
+            Token::LeftSquareBracket => {
+                print_colorize_string_for_console(
+                    format!("{:?}", value),
+                    ConsoleColors::YELLOW(true),
+                );
+
+                let mut value = Vec::<JsonValue>::new();
+                parse_list(&mut value, tokens);
+
+                parent_value.push(JsonValue::Array(value));
+            }
+            // true
+            Token::True => {
+                print_colorize_string_for_console(
+                    format!("{:?}", value),
+                    ConsoleColors::GREEN(true),
+                );
+
+                parent_value.push(JsonValue::Boolean(true))
+            }
+            // false
+            Token::False => {
+                print_colorize_string_for_console(
+                    format!("{:?}", value),
+                    ConsoleColors::GREEN(true),
+                );
+
+                parent_value.push(JsonValue::Boolean(false));
+            }
+            // null
+            Token::Null => {
+                print_colorize_string_for_console(
+                    format!("{:?} (null)", value),
+                    ConsoleColors::GREEN(true),
+                );
+
+                parent_value.push(JsonValue::Null);
+            }
+            _ => {}
+        }
+
         let token = get_next_token(tokens);
-        if let Token::RightSquareBracket = token {
+        if let Token::Comma = token {
+            // print_colorize_string_for_console(format!("{:?}", token), ConsoleColors::RED(true));
+        } else if let Token::RightSquareBracket = token {
             print_colorize_string_for_console(format!("{:?}", token), ConsoleColors::YELLOW(true));
             break;
+        } else {
+            panic!("Unexpected value found. Expected comma found {:?}", token);
         }
+        print!("\n");
     }
 }
 
@@ -108,8 +193,10 @@ where
             );
         }
 
+        // this is the name in name:value pair
+        let Token::String(name) = &token else { todo!() };
+
         // get value
-        let Token::String(s) = &token else { todo!() };
         let value = get_next_token(tokens);
         match value {
             Token::String(val) => {
@@ -118,7 +205,7 @@ where
                     ConsoleColors::GREEN(true),
                 );
 
-                parent_value.insert(s.into(), JsonValue::String(val.into()));
+                parent_value.insert(name.into(), JsonValue::String(val.into()));
             }
             Token::Number(val) => {
                 print_colorize_string_for_console(
@@ -126,7 +213,7 @@ where
                     ConsoleColors::GREEN(true),
                 );
 
-                parent_value.insert(s.into(), JsonValue::String(val.into()));
+                parent_value.insert(name.into(), JsonValue::String(val.into()));
             }
             Token::True => {
                 print_colorize_string_for_console(
@@ -134,7 +221,7 @@ where
                     ConsoleColors::GREEN(true),
                 );
 
-                parent_value.insert(s.into(), JsonValue::Boolean(true));
+                parent_value.insert(name.into(), JsonValue::Boolean(true));
             }
             Token::False => {
                 print_colorize_string_for_console(
@@ -142,7 +229,7 @@ where
                     ConsoleColors::GREEN(true),
                 );
 
-                parent_value.insert(s.into(), JsonValue::Boolean(false));
+                parent_value.insert(name.into(), JsonValue::Boolean(false));
             }
             Token::Null => {
                 print_colorize_string_for_console(
@@ -150,7 +237,7 @@ where
                     ConsoleColors::GREEN(true),
                 );
 
-                parent_value.insert(s.into(), JsonValue::Null);
+                parent_value.insert(name.into(), JsonValue::Null);
             }
             Token::LeftSquareBracket => {
                 print_colorize_string_for_console(
@@ -161,7 +248,7 @@ where
                 let mut value = Vec::<JsonValue>::new();
                 parse_list(&mut value, tokens);
 
-                parent_value.insert(s.into(), JsonValue::Array(value));
+                parent_value.insert(name.into(), JsonValue::Array(value));
             }
             Token::LeftCurlyBracket => {
                 let mut val = BTreeMap::<String, JsonValue>::new();
@@ -172,7 +259,7 @@ where
                 );
                 parse_object(&mut val, tokens);
 
-                parent_value.insert(s.into(), JsonValue::Object(val));
+                parent_value.insert(name.into(), JsonValue::Object(val));
             }
             _ => {
                 print_colorize_string_for_console(
@@ -193,59 +280,9 @@ where
         }
         print!("\n");
     }
-
-    return;
-    let token = match tokens.next() {
-        Some(token) => token,
-        None => {
-            panic!("Unexpected value found");
-        }
-    };
-
-    match token {
-        Token::String(_) => {
-            print_colorize_string_for_console(format!("{:?}", token), ConsoleColors::RED(true));
-            assert_eq!(tokens.next().unwrap(), &Token::Colon);
-
-            let token = match tokens.next() {
-                Some(token) => token,
-                None => {
-                    panic!("Unexpected value found");
-                }
-            };
-
-            match token {
-                Token::LeftCurlyBracket => {
-                    let mut value = BTreeMap::<String, JsonValue>::new();
-                    parse_object(&mut value, tokens);
-                }
-                Token::String(_) => {
-                    print_colorize_string_for_console(
-                        format!("{:?}", token),
-                        ConsoleColors::GREEN(true),
-                    );
-                }
-                _ => {
-                    print_colorize_string_for_console(
-                        format!("{:?}", token),
-                        ConsoleColors::GREEN(true),
-                    );
-                }
-            }
-        }
-        Token::Number(_) => {
-            print_colorize_string_for_console(format!("{:?}", token), ConsoleColors::YELLOW(true));
-        }
-        Token::LeftCurlyBracket => parse_object(parent_value, tokens),
-        _ => {
-            print_colorize_string_for_console(format!("{:?}", token), ConsoleColors::None);
-        }
-    }
-
-    parent_value.insert(String::new(), JsonValue::Null);
 }
 
-pub fn parse(input: &str) {
+pub fn parse(input: &str) -> BTreeMap<String, JsonValue> {
     let tokens = tokenize_json(input);
     let mut value = BTreeMap::<String, JsonValue>::new();
 
@@ -261,7 +298,7 @@ pub fn parse(input: &str) {
         parse_object(&mut value, &mut tokens);
     }
 
-    println!("{:?}", value);
+    value
 }
 
 fn validate(tokens: &Vec<tokenizer::Token>) -> bool {
